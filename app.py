@@ -1,0 +1,62 @@
+
+import streamlit as st
+import pandas as pd
+
+from fraud_detection import load_model
+
+@st.cache_resource
+def load_cached_model():
+    return load_model()
+
+model, feature_columns = load_cached_model()
+
+st.title("Fraud Detection System")
+
+st.header("Transaction Input")
+
+amount = st.number_input("Transaction Amount", min_value=1.0)
+hour = st.slider("Transaction Hour", 0, 23)
+category = st.selectbox(
+    "Transaction Category",
+    ['groceries', 'entertainment', 'utilities', 'online_shopping', 'travel']
+)
+
+input_data = {
+    'amount': amount,
+    'hour': hour,
+    'is_night': 1 if hour in [2, 3, 4] else 0,
+    'time_diff': 3600
+}
+
+category_cols = [col for col in feature_columns if "category_" in col]
+
+for col in category_cols:
+    input_data[col] = 0
+
+category_col_name = f"category_{category}"
+if category_col_name in input_data:
+    input_data[category_col_name] = 1
+
+for col in feature_columns:
+    if col not in input_data:
+        input_data[col] = 0
+
+df = pd.DataFrame([input_data])[feature_columns]
+
+st.header("Prediction Result")
+
+if st.button("Predict Fraud"):
+    pred = model.predict(df)[0]
+    prob = model.predict_proba(df)[0][1]
+
+    if pred == 1:
+        st.error(f"Fraud Detected | Probability: {prob:.2f}")
+    else:
+        st.success(f"Normal Transaction | Probability: {prob:.2f}")
+
+st.header("Model Insights")
+
+st.image("fraud_dashboard.png", use_column_width=True)
+st.image("fraud_animation.gif", use_column_width=True)
+st.image("roc_curve.png", use_column_width=True)
+st.image("pr_curve.png", use_column_width=True)
